@@ -1,0 +1,43 @@
+# rules/custom_rules.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+# Reglas personalizadas del usuario.
+# Añade tus propias reglas en este archivo y serán cargadas automáticamente.
+#
+# Formato de cada regla:
+#
+#   - id:          NOMBRE_UNICO_EN_MAYUSCULAS
+#     name:        Nombre descriptivo
+#     description: Qué detecta esta regla
+#     severity:    critical | high | medium | low
+#     pattern:     Expresión regular (Python)
+#     category:    Categoría temática libre
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+rules:
+
+  # Ejemplo 1 — Clave de API personalizada interna
+  - id:          INTERNAL_API_KEY
+    name:        API Key Interna Personalizada
+    description: >
+      Detecta claves de API del formato interno de la empresa
+      (prefijo MYAPP- seguido de 32 caracteres alfanuméricos).
+    severity:    high
+    pattern:     'MYAPP-[A-Za-z0-9]{32}'
+    category:    custom
+
+  # Ejemplo 2 — Token de acceso corporativo
+  - id:          CORP_TOKEN
+    name:        Token Corporativo
+    description: Tokens con prefijo corporativo expuestos en código fuente.
+    severity:    critical
+    pattern:     'corp_[0-9a-f]{40}'
+    category:    custom
+
+  # Ejemplo 3 — Cadena de conexión a servicio interno
+  - id:          INTERNAL_DB_CONN
+    name:        Cadena de Conexión a BD Interna
+    description: Cadenas de conexión al servidor de base de datos corporativo.
+    severity:    critical
+    pattern:     'Server=internal-db\d*\.corp\.example\.com'
+    category:    custom

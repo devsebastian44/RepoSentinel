@@ -1,0 +1,29 @@
+# GitHub Security Scanner — .gitignore
+
+# Secretos — NUNCA committear
+.env
+*.env.local
+
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Reportes generados (pueden contener datos sensibles)
+output/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
