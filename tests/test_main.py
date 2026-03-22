@@ -27,7 +27,7 @@ class TestMain:
         """Test that BANNER constant exists and is a string."""
         assert hasattr(main, 'BANNER')
         assert isinstance(main.BANNER, str)
-        assert 'RepoSentinel' in main.BANNER
+        assert 'GitHub Security Scanner' in main.BANNER
         
     def test_imports(self):
         """Test that all required modules can be imported."""
