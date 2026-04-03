@@ -4,7 +4,6 @@ core/logger.py — Sistema de logging centralizado con soporte para consola y ar
 
 import logging
 import sys
-from pathlib import Path
 from datetime import datetime
 
 import config
@@ -22,7 +21,7 @@ def get_logger(name: str) -> logging.Logger:
     """
     logger = logging.getLogger(name)
 
-    if logger.handlers:          # Evita duplicar handlers en reimportaciones
+    if logger.handlers:  # Evita duplicar handlers en reimportaciones
         return logger
 
     logger.setLevel(config.LOG_LEVEL)
@@ -47,11 +46,11 @@ class _ColorFormatter(logging.Formatter):
     """Formatter con colores ANSI para la salida en consola."""
 
     _COLORS = {
-        "DEBUG":    "\033[36m",   # Cyan
-        "INFO":     "\033[32m",   # Green
-        "WARNING":  "\033[33m",   # Yellow
-        "ERROR":    "\033[31m",   # Red
-        "CRITICAL": "\033[35m",   # Magenta
+        "DEBUG": "\033[36m",  # Cyan
+        "INFO": "\033[32m",  # Green
+        "WARNING": "\033[33m",  # Yellow
+        "ERROR": "\033[31m",  # Red
+        "CRITICAL": "\033[35m",  # Magenta
     }
     _RESET = "\033[0m"
 

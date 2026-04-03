@@ -11,13 +11,12 @@ El módulo es independiente del scanner y sólo consume ScanResult.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 import config
 from core.logger import get_logger
-from core.scanner import ScanResult, Finding, SensitiveFileHit
+from core.scanner import ScanResult
 
 log = get_logger(__name__)
 
@@ -28,9 +27,9 @@ log = get_logger(__name__)
 
 _SEVERITY_EMOJI = {
     "critical": "🔴",
-    "high":     "🟠",
-    "medium":   "🟡",
-    "low":      "🟢",
+    "high": "🟠",
+    "medium": "🟡",
+    "low": "🟢",
 }
 
 _GRADE_BADGE = {
@@ -43,7 +42,12 @@ _GRADE_BADGE = {
 
 
 def _severity_badge(sev: str) -> str:
-    colors = {"critical": "critical", "high": "important", "medium": "yellow", "low": "informational"}
+    colors = {
+        "critical": "critical",
+        "high": "important",
+        "medium": "yellow",
+        "low": "informational",
+    }
     return f"![{sev.upper()}](https://img.shields.io/badge/Severity-{sev.upper()}-{colors.get(sev, 'lightgrey')})"
 
 
@@ -53,7 +57,7 @@ def _table_row(*cols: str) -> str:
 
 def _table_header(*cols: str) -> str:
     header = _table_row(*cols)
-    sep    = "| " + " | ".join("---" for _ in cols) + " |"
+    sep = "| " + " | ".join("---" for _ in cols) + " |"
     return f"{header}\n{sep}"
 
 
@@ -61,13 +65,14 @@ def _table_header(*cols: str) -> str:
 # Reporte Markdown
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class MarkdownReporter:
     """Genera reportes de pentest en formato Markdown profesional."""
 
     def generate(
         self,
         results: list[ScanResult],
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> str:
         """
         Genera el contenido Markdown del reporte.
@@ -79,7 +84,7 @@ class MarkdownReporter:
         Returns:
             Contenido Markdown como str.
         """
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
         sections = [
             self._header(now, len(results)),
             self._executive_summary(results),
@@ -114,13 +119,13 @@ class MarkdownReporter:
 
     @staticmethod
     def _executive_summary(results: list[ScanResult]) -> str:
-        total_issues   = sum(r.total_issues for r in results)
+        total_issues = sum(r.total_issues for r in results)
         total_critical = sum(r.severity_counts["critical"] for r in results)
-        total_high     = sum(r.severity_counts["high"] for r in results)
-        total_medium   = sum(r.severity_counts["medium"] for r in results)
-        total_low      = sum(r.severity_counts["low"] for r in results)
-        avg_score      = sum(r.security_score for r in results) // max(len(results), 1)
-        total_files    = sum(r.files_analyzed for r in results)
+        total_high = sum(r.severity_counts["high"] for r in results)
+        total_medium = sum(r.severity_counts["medium"] for r in results)
+        total_low = sum(r.severity_counts["low"] for r in results)
+        avg_score = sum(r.security_score for r in results) // max(len(results), 1)
+        total_files = sum(r.files_analyzed for r in results)
 
         return (
             "## 📊 Resumen Ejecutivo\n\n"
@@ -141,7 +146,7 @@ class MarkdownReporter:
         for r in results:
             grade = r.security_grade
             badge = _GRADE_BADGE.get(grade, grade)
-            sc    = r.severity_counts
+            sc = r.severity_counts
             rows.append(
                 _table_row(
                     f"[{r.repo_full_name}]({r.repo_url})",
@@ -159,7 +164,7 @@ class MarkdownReporter:
         return "## 📋 Resumen por Repositorio\n\n" + header + "\n" + "\n".join(rows)
 
     def _repo_section(self, result: ScanResult) -> str:
-        sc    = result.severity_counts
+        sc = result.severity_counts
         grade = result.security_grade
         parts = [
             f"## 📁 `{result.repo_full_name}`\n",
@@ -182,29 +187,37 @@ class MarkdownReporter:
             parts.append(_table_header("Archivo", "Regla", "Severidad", "Descripción"))
             for sf in result.sensitive_files:
                 emoji = _SEVERITY_EMOJI.get(sf.severity, "⚪")
-                parts.append(_table_row(
-                    f"`{sf.file_path}`",
-                    sf.rule_name,
-                    f"{emoji} {sf.severity.upper()}",
-                    sf.description,
-                ))
+                parts.append(
+                    _table_row(
+                        f"`{sf.file_path}`",
+                        sf.rule_name,
+                        f"{emoji} {sf.severity.upper()}",
+                        sf.description,
+                    )
+                )
 
         # Findings de contenido
         if result.findings:
             parts.append("\n### 🔍 Vulnerabilidades en Contenido\n")
-            parts.append(_table_header("Archivo", "Línea", "Regla", "Severidad", "Extracto"))
+            parts.append(
+                _table_header("Archivo", "Línea", "Regla", "Severidad", "Extracto")
+            )
             for f in sorted(result.findings, key=lambda x: x.severity):
                 emoji = _SEVERITY_EMOJI.get(f.severity, "⚪")
-                parts.append(_table_row(
-                    f"`{f.file_path}`",
-                    str(f.line_number),
-                    f.rule_name,
-                    f"{emoji} {f.severity.upper()}",
-                    f"`{f.line_content}`",
-                ))
+                parts.append(
+                    _table_row(
+                        f"`{f.file_path}`",
+                        str(f.line_number),
+                        f.rule_name,
+                        f"{emoji} {f.severity.upper()}",
+                        f"`{f.line_content}`",
+                    )
+                )
 
         if result.total_issues == 0:
-            parts.append("\n> ✅ **No se detectaron vulnerabilidades en este repositorio.**")
+            parts.append(
+                "\n> ✅ **No se detectaron vulnerabilidades en este repositorio.**"
+            )
 
         return "\n".join(parts)
 
@@ -239,13 +252,14 @@ class MarkdownReporter:
 # Reporte JSON
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class JSONReporter:
     """Genera reportes estructurados en formato JSON."""
 
     def generate(
         self,
         results: list[ScanResult],
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> dict:
         """
         Genera el dict JSON del reporte.
@@ -257,12 +271,12 @@ class JSONReporter:
         Returns:
             Dict con el reporte completo.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         report = {
             "meta": {
-                "tool":         "github-security-scanner",
-                "version":      "1.0.0",
+                "tool": "github-security-scanner",
+                "version": "1.0.0",
                 "generated_at": now,
                 "repos_scanned": len(results),
             },
@@ -271,7 +285,9 @@ class JSONReporter:
         }
 
         if output_path:
-            output_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+            output_path.write_text(
+                json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+            )
             log.info("Reporte JSON guardado en '%s'.", output_path)
 
         return report
@@ -284,55 +300,58 @@ class JSONReporter:
                 total_sc[sev] += count
 
         return {
-            "total_issues":   sum(r.total_issues for r in results),
+            "total_issues": sum(r.total_issues for r in results),
             "files_analyzed": sum(r.files_analyzed for r in results),
             "severity_counts": total_sc,
-            "average_score":  sum(r.security_score for r in results) // max(len(results), 1),
-            "repos_with_critical": sum(1 for r in results if r.severity_counts["critical"] > 0),
+            "average_score": sum(r.security_score for r in results)
+            // max(len(results), 1),
+            "repos_with_critical": sum(
+                1 for r in results if r.severity_counts["critical"] > 0
+            ),
         }
 
     @staticmethod
     def _result_to_dict(result: ScanResult) -> dict:
         return {
             "repo": {
-                "name":      result.repo_name,
+                "name": result.repo_name,
                 "full_name": result.repo_full_name,
-                "url":       result.repo_url,
-                "stars":     result.repo_stars,
-                "language":  result.repo_language,
+                "url": result.repo_url,
+                "stars": result.repo_stars,
+                "language": result.repo_language,
             },
             "scan": {
-                "timestamp":   result.scan_timestamp,
-                "duration_s":  result.scan_duration_s,
+                "timestamp": result.scan_timestamp,
+                "duration_s": result.scan_duration_s,
                 "files_analyzed": result.files_analyzed,
-                "error":       result.error,
+                "error": result.error,
             },
             "score": {
                 "value": result.security_score,
                 "grade": result.security_grade,
             },
             "severity_counts": result.severity_counts,
-            "total_issues":    result.total_issues,
+            "total_issues": result.total_issues,
             "findings": [
                 {
-                    "rule_id":      f.rule_id,
-                    "rule_name":    f.rule_name,
-                    "severity":     f.severity,
-                    "category":     f.category,
-                    "description":  f.description,
-                    "file":         f.file_path,
-                    "line":         f.line_number,
+                    "rule_id": f.rule_id,
+                    "rule_name": f.rule_name,
+                    "severity": f.severity,
+                    "category": f.category,
+                    "description": f.description,
+                    "file": f.file_path,
+                    "line": f.line_number,
                     "line_content": f.line_content,
                 }
                 for f in result.findings
             ],
             "sensitive_files": [
                 {
-                    "rule_id":     sf.rule_id,
-                    "rule_name":   sf.rule_name,
-                    "severity":    sf.severity,
+                    "rule_id": sf.rule_id,
+                    "rule_name": sf.rule_name,
+                    "severity": sf.severity,
                     "description": sf.description,
-                    "file":        sf.file_path,
+                    "file": sf.file_path,
                 }
                 for sf in result.sensitive_files
             ],
@@ -343,6 +362,7 @@ class JSONReporter:
 # Fachada pública
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class ReportManager:
     """
     Gestiona la generación y persistencia de todos los formatos de reporte.
@@ -350,7 +370,7 @@ class ReportManager:
 
     def __init__(self, output_dir: Path = config.REPORTS_DIR) -> None:
         self._output_dir = output_dir
-        self._md_reporter   = MarkdownReporter()
+        self._md_reporter = MarkdownReporter()
         self._json_reporter = JSONReporter()
 
     def generate_all(

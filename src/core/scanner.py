@@ -16,11 +16,11 @@ from __future__ import annotations
 
 import re
 import time
-import yaml
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
+
+import yaml
 
 import config
 from core.github_api import GitHubClient
@@ -35,43 +35,47 @@ log = get_logger(__name__)
 # Modelos de datos
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class Finding:
     """Representa una vulnerabilidad detectada en un archivo."""
-    rule_id:     str
-    rule_name:   str
-    severity:    str
-    category:    str
+
+    rule_id: str
+    rule_name: str
+    severity: str
+    category: str
     description: str
-    file_path:   str
+    file_path: str
     line_number: int
-    line_content: str   # fragmento censurado de la línea
+    line_content: str  # fragmento censurado de la línea
 
 
 @dataclass
 class SensitiveFileHit:
     """Representa un archivo sensible detectado por su nombre."""
-    rule_id:     str
-    rule_name:   str
-    severity:    str
+
+    rule_id: str
+    rule_name: str
+    severity: str
     description: str
-    file_path:   str
+    file_path: str
 
 
 @dataclass
 class ScanResult:
     """Resultado completo del análisis de un repositorio."""
-    repo_name:       str
-    repo_full_name:  str
-    repo_url:        str
-    repo_stars:      int
-    repo_language:   Optional[str]
-    scan_timestamp:  str
+
+    repo_name: str
+    repo_full_name: str
+    repo_url: str
+    repo_stars: int
+    repo_language: str | None
+    scan_timestamp: str
     scan_duration_s: float
-    files_analyzed:  int
-    findings:        list[Finding]        = field(default_factory=list)
+    files_analyzed: int
+    findings: list[Finding] = field(default_factory=list)
     sensitive_files: list[SensitiveFileHit] = field(default_factory=list)
-    error:           Optional[str]        = None
+    error: str | None = None
 
     # ── Agregados calculados ──────────────────────────────────────────────────
 
@@ -104,7 +108,9 @@ class ScanResult:
     def security_grade(self) -> str:
         """Nota de A a F basada en el security_score."""
         score = self.security_score
-        for grade, threshold in sorted(config.SCORE_THRESHOLDS.items(), key=lambda x: -x[1]):
+        for grade, threshold in sorted(
+            config.SCORE_THRESHOLDS.items(), key=lambda x: -x[1]
+        ):
             if score >= threshold:
                 return grade
         return "F"
@@ -114,7 +120,10 @@ class ScanResult:
 # Cargador de reglas personalizadas
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _load_custom_rules(path: Path = config.RULES_DIR / "custom_rules.yaml") -> list[Rule]:
+
+def _load_custom_rules(
+    path: Path = config.RULES_DIR / "custom_rules.yaml",
+) -> list[Rule]:
     """
     Carga reglas adicionales desde un archivo YAML.
 
@@ -154,10 +163,11 @@ def _load_custom_rules(path: Path = config.RULES_DIR / "custom_rules.yaml") -> l
 # Analizador de contenido
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 class ContentAnalyzer:
     """Aplica reglas de patrones sobre el contenido de un archivo de texto."""
 
-    def __init__(self, extra_rules: Optional[list[Rule]] = None) -> None:
+    def __init__(self, extra_rules: list[Rule] | None = None) -> None:
         self._rules = RULES + (extra_rules or [])
 
     def analyze(self, content: str, file_path: str) -> list[Finding]:
@@ -191,9 +201,9 @@ class ContentAnalyzer:
                                 line_content=self._redact(line.strip()[:200]),
                             )
                         )
-                        break   # Una ocurrencia por regla/archivo es suficiente
+                        break  # Una ocurrencia por regla/archivo es suficiente
                 except re.error:
-                    pass        # Regex inválida en regla personalizada
+                    pass  # Regex inválida en regla personalizada
 
         return findings
 
@@ -204,9 +214,9 @@ class ContentAnalyzer:
         sensible y reemplaza el resto con asteriscos.
         Esto preserva contexto sin exponer el secreto completo.
         """
-        # Sustituye secuencias que parecen secretos (16+ chars alfanuméricos) 
+        # Sustituye secuencias que parecen secretos (16+ chars alfanuméricos)
         redacted = re.sub(
-            r'([A-Za-z0-9+/=_\-]{4})([A-Za-z0-9+/=_\-]{12,})',
+            r"([A-Za-z0-9+/=_\-]{4})([A-Za-z0-9+/=_\-]{12,})",
             lambda m: m.group(1) + "*" * min(len(m.group(2)), 8),
             text,
         )
@@ -216,6 +226,7 @@ class ContentAnalyzer:
 # ══════════════════════════════════════════════════════════════════════════════
 # Scanner principal
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class RepositoryScanner:
     """
@@ -229,8 +240,8 @@ class RepositoryScanner:
       5. Devolver ScanResult.
     """
 
-    def __init__(self, client: Optional[GitHubClient] = None) -> None:
-        self._client   = client or GitHubClient()
+    def __init__(self, client: GitHubClient | None = None) -> None:
+        self._client = client or GitHubClient()
         self._analyzer = ContentAnalyzer(extra_rules=_load_custom_rules())
 
     # ── Escaneo de un único repositorio ──────────────────────────────────────
@@ -247,7 +258,7 @@ class RepositoryScanner:
         """
         full_name = repo.get("full_name", "unknown/unknown")
         owner, name = full_name.split("/", 1)
-        start_ts   = time.time()
+        start_ts = time.time()
 
         log.info("⏳ Escaneando '%s'…", full_name)
 
@@ -273,7 +284,9 @@ class RepositoryScanner:
             if len(file_nodes) > config.MAX_FILES_PER_REPO:
                 log.debug(
                     "'%s' tiene %d archivos; limitando a %d.",
-                    full_name, len(file_nodes), config.MAX_FILES_PER_REPO,
+                    full_name,
+                    len(file_nodes),
+                    config.MAX_FILES_PER_REPO,
                 )
                 file_nodes = file_nodes[: config.MAX_FILES_PER_REPO]
 
@@ -294,7 +307,11 @@ class RepositoryScanner:
 
             # ── Paso 2: análisis de contenido ─────────────────────────────────
             eligible = self._filter_eligible(file_nodes)
-            log.debug("'%s': %d archivos elegibles para análisis de contenido.", full_name, len(eligible))
+            log.debug(
+                "'%s': %d archivos elegibles para análisis de contenido.",
+                full_name,
+                len(eligible),
+            )
 
             for node in eligible:
                 path = node.get("path", "")
@@ -304,7 +321,9 @@ class RepositoryScanner:
                     log.debug("Omitiendo '%s' (tamaño=%d bytes).", path, size)
                     continue
 
-                content = self._client.get_file_content(owner, name, path, branch=default_branch)
+                content = self._client.get_file_content(
+                    owner, name, path, branch=default_branch
+                )
                 if content is None:
                     continue
 
@@ -351,7 +370,11 @@ class RepositoryScanner:
             return []
 
         results: list[ScanResult] = []
-        log.info("Iniciando escaneo de %d repositorios con %d workers…", len(repos), config.MAX_WORKERS)
+        log.info(
+            "Iniciando escaneo de %d repositorios con %d workers…",
+            len(repos),
+            config.MAX_WORKERS,
+        )
 
         with ThreadPoolExecutor(max_workers=config.MAX_WORKERS) as pool:
             future_to_repo = {pool.submit(self.scan_repo, repo): repo for repo in repos}
@@ -360,7 +383,11 @@ class RepositoryScanner:
                     results.append(future.result())
                 except Exception as exc:
                     repo = future_to_repo[future]
-                    log.error("Excepción no capturada al escanear '%s': %s", repo.get("full_name"), exc)
+                    log.error(
+                        "Excepción no capturada al escanear '%s': %s",
+                        repo.get("full_name"),
+                        exc,
+                    )
 
         # Ordenar por security_score ascendente (los más vulnerables primero)
         results.sort(key=lambda r: r.security_score)
@@ -377,11 +404,14 @@ class RepositoryScanner:
         eligible = []
         for node in nodes:
             path = node.get("path", "")
-            ext  = Path(path).suffix.lower()
+            ext = Path(path).suffix.lower()
             if ext in config.IGNORED_EXTENSIONS:
                 continue
             # Excluir directorios comunes de dependencias
-            if any(part in path.split("/") for part in ("node_modules", "vendor", ".git", "__pycache__")):
+            if any(
+                part in path.split("/")
+                for part in ("node_modules", "vendor", ".git", "__pycache__")
+            ):
                 continue
             eligible.append(node)
         return eligible

@@ -33,7 +33,7 @@
 | Característica | Descripción |
 |---|---|
 | 🔑 **Autenticación GitHub** | Soporte de token para aumentar el rate-limit (5000 req/h) |
-| 🔍 **Búsqueda múltiple** | Por keyword, usuario/org o trending semanal |
+| 🔍 **Búsqueda múltiple** | Por URL directa, keyword, usuario/org o trending |
 | 🧠 **35+ reglas de detección** | AWS, Google, GitHub, Stripe, Slack, Azure, etc. |
 | 📁 **Archivos sensibles** | 30+ patrones de nombre: .env, id_rsa, credentials, etc. |
 | ⚙️ **Reglas personalizables** | Añade tus propias reglas en YAML sin tocar código |
@@ -41,6 +41,7 @@
 | 🛡️ **Rate-limit inteligente** | Detección automática + back-off exponencial |
 | 📊 **Security Score** | Puntuación 0-100 + nota A-F por repositorio |
 | 📄 **Reportes duales** | Markdown (legible) y JSON (integrable) |
+| 🐳 **Portabilidad Docker** | Imagen optimizada y segura para ejecución aséptica |
 | 🖥️ **CLI completo** | Subcomandos, flags, ayuda detallada |
 | 📝 **Logging avanzado** | Consola con colores + archivo rotativo diario |
 
@@ -90,7 +91,7 @@ Usuario
   ▼ CLI args
 main.py
   │
-  ├──► GitHubClient.search_repos_*()
+  ├──► GitHubClient.search_repos_*() / get_repo_by_url()
   │         │
   │         └──► [lista de repos]
   │
@@ -117,33 +118,47 @@ main.py
 ```
 github-security-scanner/
 │
-├── main.py                    # CLI principal (argparse)
-├── config.py                  # Configuración global centralizada
-├── requirements.txt           # Dependencias Python
-├── .env.example               # Plantilla de variables de entorno
+├── src/                       # Código fuente y lógica principal
+│   ├── main.py                # CLI principal
+│   ├── config.py              # Configuración base
+│   ├── core/                  # Módulos core (API, logger, base scanner)
+│   ├── rules/                 # Patrones Regex y archivos sensibles (Core Engine)
+│   └── reports/               # Motores de reporting multiformato
 │
-├── core/                      # Módulos principales
-│   ├── __init__.py
-│   ├── github_api.py          # Cliente REST de GitHub API v3
-│   ├── scanner.py             # Motor de escaneo + threading
-│   └── logger.py              # Sistema de logging (consola + archivo)
+├── configs/                   # Configuraciones del laboratorio
+│   └── .env.example           # Plantilla de secretos
 │
-├── rules/                     # Reglas de detección
-│   ├── __init__.py
-│   ├── patterns.py            # 35+ reglas regex por proveedor/categoría
-│   ├── sensitive_files.py     # 30+ patrones de archivos sensibles
-│   └── custom_rules.yaml      # Reglas personalizables por el usuario
+├── scripts/                   # Scripts de automatización Pipeline local y Deploy
+│   ├── setup.sh               # Script de entorno de desarrollo principal
+│   └── publish_public.ps1     # Automatización DevSecOps para publicación en GitHub
 │
-├── reports/                   # Motor de reportes
-│   ├── __init__.py
-│   └── reporter.py            # Generadores Markdown y JSON
+├── docs/                      # Documentación técnica
+├── diagrams/                  # Arquitectura y diseño (C4/Diagrams)
 │
-├── output/                    # Reportes generados (gitignored)
-├── logs/                      # Archivos de log diarios (gitignored)
-│
-└── scripts/
-    └── setup.sh               # Script de instalación automática
+├── .gitlab-ci.yml             # Integración con Laboratorio Privado Oculto
+├── requirements.txt           # Dependencias
+└── pyproject.toml             # Formateo (ruff) genérico
 ```
+
+### Separación de Entornos y Estrategia DevSecOps
+
+Este repositorio está construido bajo un enfoque avanzado de ciberseguridad, separando el ciclo de investigación local del código distribuible públicamente:
+
+1. **GitLab (Private Lab / Source of Truth)**: El repositorio "aguas arriba" es un laboratorio privado completo. Cuenta con CI/CD extensivo, integración continua en pipelines de seguridad, componentes de prueba reales, scripts y cargas condicionales o tests automáticos. Todo el desarrollo se ejecuta primero aquí.
+2. **GitHub (Sanitizado / Público)**: Versión exclusiva para portafolio público, revisión académica o disclosure. No expone CI privados (`.gitlab-ci.yml`), carpetas de tests que contengan vectores de prueba reales (`tests/`), scripts corporativos locales (`scripts/`) o configuraciones sensibles (`configs/`).
+
+Esta segregación previene en todo momento que código de uso puramente ofensivo, pruebas en bruto o metadatos de nuestra operación de laboratorio sean expuestos accidentalmente en internet abierto.
+
+### Script `publish_public.ps1`
+
+El script encargado de arbitrar la segregación descrita es `publish_public.ps1`. Implementa una estrategia de sanitización automática **antes** de impactar la rama pública destinada a GitHub. 
+
+**Proceso del Script:**
+1. **Validación**: Comprueba que estemos laborando en la rama `main` y en entorno limpio.
+2. **Sincronización Previa**: Pushea los avances íntegros al ambiente Lab interno (GitLab).
+3. **Mecanismo Ocultación**: Crea una rama paralela (y temporal en log local) aislada.
+4. **Sanitización Acondicionada**: Elimina a nivel de Git cache todas las carpetas inyectables: `tests/`, `configs/`, y el propio despliegue `.gitlab-ci.yml` junto con el propio código fuente de reglas en entornos específicos si lo aplica.
+5. **Liberación Controlada**: Despliega un "force push" aséptico al repositorio público y vuelve de inmediato al `main` seguro para que el investigador continúe sin percibir cortes en sus archivos locales de proyecto.
 
 ---
 
@@ -154,30 +169,38 @@ github-security-scanner/
 - Python 3.9 o superior
 - Token de acceso personal de GitHub ([generar aquí](https://github.com/settings/tokens))
 
-### Instalación rápida
+### 🐧 Instalación en Linux / macOS
 
 ```bash
 # 1. Clonar el repositorio
 git clone https://github.com/tuusuario/github-security-scanner.git
 cd github-security-scanner
 
-# 2. Ejecutar el script de setup (crea venv + instala deps + crea .env)
-bash scripts/setup.sh
-
-# 3. Activar el entorno virtual
-source .venv/bin/activate   # Linux/macOS
-# o
-.venv\Scripts\activate      # Windows
-```
-
-### Instalación manual
-
-```bash
+# 2. Crear entorno virtual e instalar dependencias
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
+
+# 3. Configurar entorno
 cp .env.example .env
-# Editar .env y añadir GITHUB_TOKEN
+# Editar .env y añadir tu GITHUB_TOKEN
+```
+
+### 🪟 Instalación en Windows
+
+```powershell
+# 1. Clonar el repositorio
+git clone https://github.com/tuusuario/github-security-scanner.git
+cd github-security-scanner
+
+# 2. Crear entorno virtual e instalar dependencias
+python -m venv .venv
+.\.venv\Scripts\activate
+python -m pip install -r requirements.txt
+
+# 3. Configurar entorno
+Copy-Item .env.example .env
+# Editar .env y añadir tu GITHUB_TOKEN
 ```
 
 ---
@@ -203,63 +226,78 @@ LOG_LEVEL=INFO            # DEBUG | INFO | WARNING | ERROR
 
 ## 🖥️ Uso
 
+> [!NOTE]
+> Debido al estándar de arquitectura segregada, todas las ejecuciones locales se dirigen explícitamente hacia la carpeta fuente: `python src/main.py`.
+
+### Escaneo por URL directa
+
+```bash
+# Escanear un repositorio específico mediante su enlace
+python src/main.py url https://github.com/octocat/Spoon-Knife
+
+# Soporte para diversos formatos (HTTPS, SSH, corto)
+python src/main.py url github.com/pallets/flask
+python src/main.py url owner/repo
+```
+
 ### Escaneo por palabra clave
 
 ```bash
 # Buscar repos que mencionen "aws secret key"
-python main.py keyword "aws secret key" --max-repos 5
+python src/main.py keyword "aws secret key" --max-repos 5
 
 # Filtrar por lenguaje
-python main.py keyword "firebase" --language javascript --max-repos 10
+python src/main.py keyword "firebase" --language javascript --max-repos 10
 
 # Generar solo JSON
-python main.py keyword "django" --format json -n 3
+python src/main.py keyword "django" --format json -n 3
 ```
 
 ### Escaneo por usuario u organización
 
 ```bash
 # Escanear repos públicos de un usuario
-python main.py user octocat --max-repos 10
+python src/main.py user octocat --max-repos 10
 
 # Escanear repos de una organización
-python main.py user microsoft --max-repos 20 --workers 8
+python src/main.py user microsoft --max-repos 20 --workers 8
 ```
 
 ### Repositorios Trending
 
 ```bash
 # Top trending de la semana (todos los lenguajes)
-python main.py trending --max-repos 10
+python src/main.py trending --max-repos 10
 
 # Trending de Python con 8 workers
-python main.py trending --language python --max-repos 15 --workers 8
+python src/main.py trending --language python --max-repos 15 --workers 8
 ```
 
 ### Verificar rate-limit
 
 ```bash
-python main.py rate-limit
+python src/main.py rate-limit
 ```
 
 ### Opciones globales
 
 ```bash
-python main.py keyword "stripe" \
-    --max-repos 5 \          # Límite de repos
-    --workers 3 \            # Threads paralelos
-    --format md json \       # Formatos de reporte
+python src/main.py keyword "stripe" \
+    --max-repos 5 \                # Límite de repositorios
+    --workers 3 \                  # Hilos paralelos
+    --format md json \             # Formatos de reporte
     --output-dir ./mis_reportes \  # Directorio de salida
-    --token ghp_XXXX \       # Token inline (alternativa a .env)
-    --no-banner              # Sin banner ASCII
+    --token ghp_XXXX \             # Sustituto temporal por línea a .env
+    --no-banner                    # Suprimir banner ASCII
 ```
 
 ### Ayuda
 
 ```bash
-python main.py --help
-python main.py keyword --help
-python main.py user --help
+python src/main.py --help
+python src/main.py url --help
+python src/main.py keyword --help
+python src/main.py user --help
 ```
 
 ---
@@ -442,7 +480,7 @@ Si encuentras un secreto expuesto en un repo ajeno, la práctica correcta es not
 - [ ] **Motor ML/NLP** para detección de secretos con semántica (reducir falsos positivos).
 - [ ] **Base de datos de resultados** (SQLite/PostgreSQL) para comparación histórica.
 - [ ] **API REST propia** para integración en pipelines CI/CD.
-- [ ] **Contenedor Docker** oficial.
+- [x] **Contenedor Docker** oficial para ejecución aislada.
 - [ ] **GitHub Action** para integración nativa en workflows.
 - [ ] **Soporte para Semgrep** como motor de análisis estático adicional.
 

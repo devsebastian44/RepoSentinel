@@ -1,25 +1,42 @@
-# GitHub Security Scanner — .gitignore
+# GitHub Security Scanner — .gitignore DevSecOps
 
 # Secretos — NUNCA committear
 .env
 *.env.local
+*.pem
+*.key
+id_rsa
+id_ed25519
 
 # Entorno virtual
 .venv/
 venv/
 env/
 
-# Reportes generados (pueden contener datos sensibles)
+# Reportes generados (Exclusiones de seguridad local)
 output/
 logs/
+bandit-report.json
+safety-report.json
 
-# Python
+# Python y Compilados
 __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
 build/
 .eggs/
+
+# Testing / CI
+.coverage
+htmlcov/
+.pytest_cache/
+coverage.xml
+
+# Linting
+.mypy_cache/
+.ruff_cache/
+.cache/
 
 # IDEs
 .vscode/

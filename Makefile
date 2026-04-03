@@ -28,24 +28,30 @@ test:
 	pytest --cov=. --cov-report=html --cov-report=term
 
 lint:
-	flake8 . --max-line-length=88 --extend-ignore=E203,W503
+	ruff check .
 	mypy .
-	bandit -r . -f json -o bandit-report.json || true
 
 format:
-	black .
-	isort .
+	ruff format .
 
 # Security
 security:
-	safety check
+	pip-audit
 	bandit -r . -f json -o bandit-report.json || true
+
+# Docker
+docker-build:
+	docker build -t repo-sentinel .
+
+docker-run:
+	docker run --rm -it --env-file .env repo-sentinel --help
 
 # Maintenance
 clean:
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name "__pycache__" -delete
-	find . -type d -name "*.egg-info" -exec rm -rf {} +
+	rm -rf `find . -name __pycache__`
+	rm -rf `find . -name "*.pyc"`
+	rm -rf *.egg-info
+	rm -rf .ruff_cache
 	rm -rf build/
 	rm -rf dist/
 	rm -rf .coverage
@@ -55,7 +61,7 @@ clean:
 
 # Running the application
 run:
-	python main.py --help
+	python src/main.py --help
 
 # Development workflow
 dev-setup: install-dev

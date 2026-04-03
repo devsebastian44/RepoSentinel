@@ -1,0 +1,33 @@
+# Dockerignore — Evitar incluir archivos innecesarios en la imagen
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.db
+.sqlite
+.env
+output/
+reports/
+logs/
+tests/
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+README.md
+docs/
+Makefile
+Dockerfile
+.dockerignore
+.pre-commit-config.yaml
+pyproject.toml
+setup.py
+requirements.txt
+# No incluir reportes generados
+*.json
+*.md
+!README.md

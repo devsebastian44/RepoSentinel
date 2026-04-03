@@ -13,8 +13,8 @@ Para más opciones:
 
 from __future__ import annotations
 
-import sys
 import argparse
+import sys
 import textwrap
 from pathlib import Path
 
@@ -23,8 +23,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import config
 from core.github_api import GitHubClient, RateLimitError
-from core.scanner import RepositoryScanner
 from core.logger import get_logger
+from core.scanner import RepositoryScanner
 from reports.reporter import ReportManager
 
 log = get_logger("main")
@@ -55,6 +55,7 @@ BANNER = r"""
 # CLI
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="github-security-scanner",
@@ -68,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
         """),
         epilog=textwrap.dedent("""
         Ejemplos:
+          # Escanear por URL de repositorio
+          python main.py url https://github.com/octocat/Spoon-Knife
+
           # Escanear por palabra clave
           python main.py keyword "aws secret key" --max-repos 5
 
@@ -91,37 +95,54 @@ def build_parser() -> argparse.ArgumentParser:
     # keyword
     kw = sub.add_parser("keyword", help="Buscar repositorios por palabra clave.")
     kw.add_argument("query", help="Término de búsqueda (p.ej. 'aws secret key').")
-    kw.add_argument("--language", "-l", help="Filtrar por lenguaje (python, javascript, …).")
+    kw.add_argument(
+        "--language", "-l", help="Filtrar por lenguaje (python, javascript, …)."
+    )
 
     # user
-    us = sub.add_parser("user", help="Escanear repositorios de un usuario u organización.")
+    us = sub.add_parser(
+        "user", help="Escanear repositorios de un usuario u organización."
+    )
     us.add_argument("username", help="Nombre de usuario o organización en GitHub.")
 
     # trending
-    tr = sub.add_parser("trending", help="Escanear repositorios trending de la última semana.")
+    tr = sub.add_parser(
+        "trending", help="Escanear repositorios trending de la última semana."
+    )
     tr.add_argument("--language", "-l", help="Filtrar por lenguaje.")
 
+    # url
+    ur = sub.add_parser("url", help="Escanear un repositorio específico por su URL.")
+    ur.add_argument(
+        "url", help="URL del repositorio de GitHub (ej. https://github.com/user/repo)."
+    )
+
     # rate-limit
-    sub.add_parser("rate-limit", help="Mostrar el estado del rate-limit de la API de GitHub.")
+    sub.add_parser(
+        "rate-limit", help="Mostrar el estado del rate-limit de la API de GitHub."
+    )
 
     # ── Opciones globales ──────────────────────────────────────────────────────
-    for p in (kw, us, tr):
+    for p in (kw, us, tr, ur):
         p.add_argument(
-            "--max-repos", "-n",
+            "--max-repos",
+            "-n",
             type=int,
             default=config.MAX_REPOS,
             metavar="N",
             help=f"Número máximo de repositorios a escanear (default: {config.MAX_REPOS}).",
         )
         p.add_argument(
-            "--workers", "-w",
+            "--workers",
+            "-w",
             type=int,
             default=config.MAX_WORKERS,
             metavar="N",
             help=f"Hilos paralelos para el escaneo (default: {config.MAX_WORKERS}).",
         )
         p.add_argument(
-            "--format", "-f",
+            "--format",
+            "-f",
             nargs="+",
             choices=["md", "json"],
             default=["md", "json"],
@@ -129,14 +150,16 @@ def build_parser() -> argparse.ArgumentParser:
             help="Formatos de reporte a generar: md, json (default: ambos).",
         )
         p.add_argument(
-            "--output-dir", "-o",
+            "--output-dir",
+            "-o",
             type=Path,
             default=config.REPORTS_DIR,
             metavar="DIR",
             help=f"Directorio de salida para los reportes (default: {config.REPORTS_DIR}).",
         )
         p.add_argument(
-            "--token", "-t",
+            "--token",
+            "-t",
             default=None,
             metavar="TOKEN",
             help="Token de GitHub (también puede configurarse con GITHUB_TOKEN env var).",
@@ -154,6 +177,7 @@ def build_parser() -> argparse.ArgumentParser:
 # Lógica principal
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def run(args: argparse.Namespace) -> int:
     """
     Ejecuta el flujo principal según el subcomando elegido.
@@ -166,7 +190,7 @@ def run(args: argparse.Namespace) -> int:
         config.MAX_WORKERS = args.workers
 
     token = getattr(args, "token", None) or config.GITHUB_TOKEN
-    client  = GitHubClient(token=token)
+    client = GitHubClient(token=token)
     scanner = RepositoryScanner(client=client)
     manager = ReportManager(output_dir=getattr(args, "output_dir", config.REPORTS_DIR))
 
@@ -174,11 +198,16 @@ def run(args: argparse.Namespace) -> int:
     if args.command == "rate-limit":
         status = client.get_rate_limit_status()
         print("\n📊 Estado del Rate-Limit de GitHub API:")
-        print(f"   Core:   {status['core_remaining']}/{status['core_limit']} requests restantes")
-        print(f"   Search: {status['search_remaining']}/{status['search_limit']} requests restantes")
+        print(
+            f"   Core:   {status['core_remaining']}/{status['core_limit']} requests restantes"
+        )
+        print(
+            f"   Search: {status['search_remaining']}/{status['search_limit']} requests restantes"
+        )
         import time
+
         reset = status.get("core_reset", 0)
-        wait  = max(int(reset) - int(time.time()), 0)
+        wait = max(int(reset) - int(time.time()), 0)
         print(f"   Reset en: {wait}s\n")
         return 0
 
@@ -200,6 +229,8 @@ def run(args: argparse.Namespace) -> int:
                 language=getattr(args, "language", None),
                 max_results=args.max_repos,
             )
+        elif args.command == "url":
+            repos = client.get_repo_by_url(url=args.url)
         else:
             log.error("Comando desconocido: %s", args.command)
             return 1
@@ -219,8 +250,8 @@ def run(args: argparse.Namespace) -> int:
     results = scanner.scan_repos(repos)
 
     # ── Generación de reportes ─────────────────────────────────────────────────
-    formats  = tuple(getattr(args, "format", ["md", "json"]))
-    out_dir  = getattr(args, "output_dir", config.REPORTS_DIR)
+    formats = tuple(getattr(args, "format", ["md", "json"]))
+    out_dir = getattr(args, "output_dir", config.REPORTS_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if args.command == "keyword":
@@ -229,6 +260,10 @@ def run(args: argparse.Namespace) -> int:
         prefix = f"user_{args.username}"
     elif args.command == "trending":
         prefix = "trending"
+    elif args.command == "url":
+        # Extraer owner_repo de la URL para el prefijo
+        owner, repo_name = client._parse_github_url(args.url)
+        prefix = f"url_{owner}_{repo_name}" if owner else "url_scan"
     else:
         prefix = "report"
 
@@ -241,7 +276,7 @@ def run(args: argparse.Namespace) -> int:
 
 def _print_summary(results: list, paths: dict) -> None:
     """Imprime un resumen compacto en la consola."""
-    total_issues   = sum(r.total_issues for r in results)
+    total_issues = sum(r.total_issues for r in results)
     total_critical = sum(r.severity_counts["critical"] for r in results)
 
     print("\n" + "═" * 60)
@@ -272,9 +307,10 @@ def _print_summary(results: list, paths: dict) -> None:
 # Entry point
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def main() -> None:
     parser = build_parser()
-    args   = parser.parse_args()
+    args = parser.parse_args()
 
     show_banner = not getattr(args, "no_banner", False)
     if show_banner:

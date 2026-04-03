@@ -11,9 +11,9 @@ Funcionalidades:
 
 from __future__ import annotations
 
-import time
 import base64
-from typing import Generator, Optional
+import time
+from collections.abc import Generator
 
 import requests
 
@@ -54,7 +54,7 @@ class GitHubClient:
     def _get(
         self,
         url: str,
-        params: Optional[dict] = None,
+        params: dict | None = None,
         retries: int = 3,
     ) -> dict | list:
         """
@@ -86,10 +86,13 @@ class GitHubClient:
             except RateLimitError:
                 raise
             except requests.RequestException as exc:
-                wait = 2 ** attempt
+                wait = 2**attempt
                 log.warning(
                     "Error en petición (intento %d/%d): %s. Reintentando en %ds…",
-                    attempt, retries, exc, wait,
+                    attempt,
+                    retries,
+                    exc,
+                    wait,
                 )
                 time.sleep(wait)
 
@@ -98,13 +101,11 @@ class GitHubClient:
     def _check_rate_limit(self, resp: requests.Response) -> None:
         """Pausa o lanza excepción cuando el rate-limit está bajo."""
         remaining = int(resp.headers.get("X-RateLimit-Remaining", 9999))
-        reset_ts   = int(resp.headers.get("X-RateLimit-Reset", 0))
+        reset_ts = int(resp.headers.get("X-RateLimit-Reset", 0))
 
         if resp.status_code == 403 and remaining == 0:
             wait = max(reset_ts - int(time.time()), 0) + 5
-            log.error(
-                "Rate-limit agotado. Esperando %ds hasta el reset…", wait
-            )
+            log.error("Rate-limit agotado. Esperando %ds hasta el reset…", wait)
             raise RateLimitError(f"Rate-limit agotado. Reset en {wait}s.")
 
         if 0 < remaining <= config.RATE_LIMIT_MIN_REM:
@@ -120,7 +121,7 @@ class GitHubClient:
     def search_repos_by_keyword(
         self,
         keyword: str,
-        language: Optional[str] = None,
+        language: str | None = None,
         max_results: int = config.MAX_REPOS,
     ) -> list[dict]:
         """
@@ -173,7 +174,7 @@ class GitHubClient:
 
     def get_trending_repos(
         self,
-        language: Optional[str] = None,
+        language: str | None = None,
         max_results: int = config.MAX_REPOS,
     ) -> list[dict]:
         """
@@ -188,6 +189,7 @@ class GitHubClient:
             Lista de repositorios trending.
         """
         from datetime import date, timedelta
+
         since = (date.today() - timedelta(days=7)).isoformat()
         query = f"created:>{since}"
         if language:
@@ -196,7 +198,12 @@ class GitHubClient:
         log.info("Obteniendo repositorios trending desde %s…", since)
         data = self._get(
             "search/repositories",
-            params={"q": query, "sort": "stars", "order": "desc", "per_page": min(max_results, 100)},
+            params={
+                "q": query,
+                "sort": "stars",
+                "order": "desc",
+                "per_page": min(max_results, 100),
+            },
         )
         items = data.get("items", [])[:max_results]
         log.info("Encontrados %d repositorios trending.", len(items))
@@ -229,7 +236,8 @@ class GitHubClient:
         if data.get("truncated"):
             log.warning(
                 "El árbol de '%s/%s' fue truncado por la API (repo muy grande).",
-                owner, repo,
+                owner,
+                repo,
             )
         return data.get("tree", [])
 
@@ -241,7 +249,7 @@ class GitHubClient:
         repo: str,
         path: str,
         branch: str = "HEAD",
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         Descarga el contenido de un archivo como texto plano.
 
@@ -255,7 +263,9 @@ class GitHubClient:
             Contenido del archivo como str, o None si no se puede obtener.
         """
         # Intentamos primero con la API de contenidos (devuelve base64)
-        data = self._get(f"repos/{owner}/{repo}/contents/{path}", params={"ref": branch})
+        data = self._get(
+            f"repos/{owner}/{repo}/contents/{path}", params={"ref": branch}
+        )
 
         if not data:
             return None
@@ -263,7 +273,9 @@ class GitHubClient:
         # Archivos > 1 MB no vienen codificados en base64; usamos raw URL
         if isinstance(data, dict) and data.get("encoding") == "base64":
             try:
-                return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+                return base64.b64decode(data["content"]).decode(
+                    "utf-8", errors="replace"
+                )
             except Exception as exc:
                 log.debug("Error decodificando base64 de '%s': %s", path, exc)
                 return None
@@ -292,18 +304,64 @@ class GitHubClient:
         search = data.get("resources", {}).get("search", {})
         return {
             "core_remaining": core.get("remaining"),
-            "core_limit":     core.get("limit"),
-            "core_reset":     core.get("reset"),
+            "core_limit": core.get("limit"),
+            "core_reset": core.get("reset"),
             "search_remaining": search.get("remaining"),
-            "search_limit":     search.get("limit"),
+            "search_limit": search.get("limit"),
         }
+
+    def _parse_github_url(self, url: str) -> tuple[str | None, str | None]:
+        """
+        Analiza una URL de GitHub para extraer el propietario y el nombre del repo.
+        Soporta:
+          - https://github.com/owner/repo
+          - http://github.com/owner/repo.git
+          - github.com/owner/repo
+          - owner/repo
+        """
+        url = url.strip().rstrip("/")
+        if url.startswith("http"):
+            if "github.com/" not in url:
+                return None, None
+            path = url.split("github.com/")[-1]
+        elif "github.com/" in url:
+            path = url.split("github.com/")[-1]
+        else:
+            path = url
+
+        parts = [p for p in path.split("/") if p]
+        if len(parts) >= 2:
+            owner = parts[0]
+            repo = parts[1].replace(".git", "")
+            return owner, repo
+
+        return None, None
+
+    def get_repo_by_url(self, url: str) -> list[dict]:
+        """
+        Obtiene un repositorio a partir de su URL.
+        Retorna una lista con un único dict para mantener compatibilidad con search_repos.
+        """
+        owner, repo_name = self._parse_github_url(url)
+        if not owner or not repo_name:
+            log.error("Formato de URL de GitHub no reconocido: %s", url)
+            return []
+
+        log.info("Obteniendo repositorio por URL: %s/%s", owner, repo_name)
+        repo_data = self.get_repo_info(owner, repo_name)
+
+        if not repo_data:
+            log.warning("No se pudo encontrar el repositorio: %s/%s", owner, repo_name)
+            return []
+
+        return [repo_data]
 
     # ── Iterador paginado ─────────────────────────────────────────────────────
 
     def paginate(
         self,
         url: str,
-        params: Optional[dict] = None,
+        params: dict | None = None,
         max_pages: int = 10,
     ) -> Generator[dict, None, None]:
         """
