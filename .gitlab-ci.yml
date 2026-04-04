@@ -10,6 +10,8 @@ variables:
   PYTHON_VERSION: "3.12"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
+image: python:$PYTHON_VERSION
+
 cache:
   paths:
     - .cache/pip
@@ -25,7 +27,7 @@ before_script:
 unit-tests:
   stage: test
   script:
-    - pytest --cov=src --cov-report=xml --cov-report=term
+    - pytest --cov=. --cov-report=xml --cov-report=term
   artifacts:
     reports:
       coverage_report:
@@ -37,7 +39,7 @@ code-linting:
   script:
     - ruff check .
     - ruff format --check .
-    - mypy src/
+    - mypy .
 
 sast-security-scan:
   stage: security
