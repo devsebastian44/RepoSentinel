@@ -73,7 +73,7 @@ ci-test:
 	pytest --cov=. --cov-report=xml
 
 ci-lint:
-	flake8 . --max-line-length=88 --extend-ignore=E203,W503
+	ruff check .
 	mypy .
 
 ci-security:
