@@ -51,7 +51,7 @@ def _severity_badge(sev: str) -> str:
     return f"![{sev.upper()}](https://img.shields.io/badge/Severity-{sev.upper()}-{colors.get(sev, 'lightgrey')})"
 
 
-def _table_row(*cols: str) -> str:
+def _table_row(*cols: object) -> str:
     return "| " + " | ".join(str(c) for c in cols) + " |"
 
 

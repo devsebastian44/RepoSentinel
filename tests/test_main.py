@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,7 +17,7 @@ class TestMain:
     """Test cases for main module."""
 
     @patch("main.argparse.ArgumentParser")
-    def test_argument_parser_creation(self, mock_parser):
+    def test_argument_parser_creation(self, mock_parser: Any) -> None:
         """Test that argument parser is created correctly."""
         mock_instance = MagicMock()
         mock_parser.return_value = mock_instance
@@ -24,13 +25,13 @@ class TestMain:
         # This would normally be called in main()
         mock_instance.add_argument.assert_not_called()
 
-    def test_banner_exists(self):
+    def test_banner_exists(self) -> None:
         """Test that BANNER constant exists and is a string."""
         assert hasattr(main, "BANNER")
         assert isinstance(main.BANNER, str)
         assert "GitHub Security Scanner" in main.BANNER
 
-    def test_imports(self):
+    def test_imports(self) -> None:
         """Test that all required modules can be imported."""
         assert hasattr(main, "config")
         assert hasattr(main, "GitHubClient")

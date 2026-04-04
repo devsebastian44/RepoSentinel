@@ -14,6 +14,7 @@ from __future__ import annotations
 import base64
 import time
 from collections.abc import Generator
+from typing import Any, cast
 
 import requests
 
@@ -81,7 +82,7 @@ class GitHubClient:
                     return {}
 
                 resp.raise_for_status()
-                return resp.json()
+                return cast("dict[Any, Any] | list[Any]", resp.json())
 
             except RateLimitError:
                 raise
@@ -100,8 +101,8 @@ class GitHubClient:
 
     def _check_rate_limit(self, resp: requests.Response) -> None:
         """Pausa o lanza excepción cuando el rate-limit está bajo."""
-        remaining = int(resp.headers.get("X-RateLimit-Remaining", 9999))
-        reset_ts = int(resp.headers.get("X-RateLimit-Reset", 0))
+        remaining = int(resp.headers.get("X-RateLimit-Remaining") or 9999)
+        reset_ts = int(resp.headers.get("X-RateLimit-Reset") or 0)
 
         if resp.status_code == 403 and remaining == 0:
             wait = max(reset_ts - int(time.time()), 0) + 5
@@ -144,7 +145,7 @@ class GitHubClient:
             "search/repositories",
             params={"q": query, "sort": "stars", "per_page": min(max_results, 100)},
         )
-        items = data.get("items", [])[:max_results]
+        items = data.get("items", [])[:max_results] if isinstance(data, dict) else []
         log.info("Encontrados %d repositorios.", len(items))
         return items
 
@@ -205,7 +206,7 @@ class GitHubClient:
                 "per_page": min(max_results, 100),
             },
         )
-        items = data.get("items", [])[:max_results]
+        items = data.get("items", [])[:max_results] if isinstance(data, dict) else []
         log.info("Encontrados %d repositorios trending.", len(items))
         return items
 
@@ -233,13 +234,15 @@ class GitHubClient:
             f"repos/{owner}/{repo}/git/trees/{branch}",
             params={"recursive": "1"},
         )
-        if data.get("truncated"):
-            log.warning(
-                "El árbol de '%s/%s' fue truncado por la API (repo muy grande).",
-                owner,
-                repo,
-            )
-        return data.get("tree", [])
+        if isinstance(data, dict):
+            if data.get("truncated"):
+                log.warning(
+                    "El árbol de '%s/%s' fue truncado por la API (repo muy grande).",
+                    owner,
+                    repo,
+                )
+            return cast("list[dict[str, Any]]", data.get("tree", []))
+        return []
 
     # ── Contenido de archivos ─────────────────────────────────────────────────
 
@@ -293,22 +296,26 @@ class GitHubClient:
 
     # ── Info de repositorio ───────────────────────────────────────────────────
 
-    def get_repo_info(self, owner: str, repo: str) -> dict:
+    def get_repo_info(self, owner: str, repo: str) -> dict[str, Any]:
         """Devuelve metadata de un repositorio específico."""
-        return self._get(f"repos/{owner}/{repo}")
+        data = self._get(f"repos/{owner}/{repo}")
+        return data if isinstance(data, dict) else {}
 
     def get_rate_limit_status(self) -> dict:
         """Devuelve el estado actual del rate-limit de la API."""
         data = self._get("rate_limit")
-        core = data.get("resources", {}).get("core", {})
-        search = data.get("resources", {}).get("search", {})
-        return {
-            "core_remaining": core.get("remaining"),
-            "core_limit": core.get("limit"),
-            "core_reset": core.get("reset"),
-            "search_remaining": search.get("remaining"),
-            "search_limit": search.get("limit"),
-        }
+        if isinstance(data, dict):
+            resources = data.get("resources", {})
+            core = resources.get("core", {})
+            search = resources.get("search", {})
+            return {
+                "core_remaining": core.get("remaining"),
+                "core_limit": core.get("limit"),
+                "core_reset": core.get("reset"),
+                "search_remaining": search.get("remaining"),
+                "search_limit": search.get("limit"),
+            }
+        return {}
 
     def _parse_github_url(self, url: str) -> tuple[str | None, str | None]:
         """
