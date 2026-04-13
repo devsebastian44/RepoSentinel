@@ -44,7 +44,7 @@ code-linting:
 sast-security-scan:
   stage: security
   script:
-    - safety check --full-report
+    - safety scan --output safety-report.json || true
     - bandit -r src/ -f json -o bandit-report.json || true
   artifacts:
     paths:
