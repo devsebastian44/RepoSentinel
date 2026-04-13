@@ -1,503 +1,295 @@
-# 🔐 GitHub Security Scanner
+# RepoSentinel
 
-> **Herramienta profesional de análisis de seguridad para repositorios públicos de GitHub.**  
-> Detecta secretos expuestos, credenciales hardcodeadas y archivos sensibles mediante expresiones regulares y reglas personalizables.
-
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen)
-![Security](https://img.shields.io/badge/Purpose-Pentesting-red)
-
----
-
-## 📋 Tabla de Contenidos
-
-- [Características](#-características)
-- [Arquitectura](#-arquitectura)
-- [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Instalación](#-instalación)
-- [Configuración](#-configuración)
-- [Uso](#-uso)
-- [Reglas de Detección](#-reglas-de-detección)
-- [Reportes](#-reportes)
-- [Sistema de Scoring](#-sistema-de-scoring)
-- [Reglas Personalizadas](#-reglas-personalizadas)
-- [Consideraciones Éticas y Legales](#-consideraciones-éticas-y-legales)
-- [Ideas para Mejoras Futuras](#-ideas-para-mejoras-futuras)
-- [Contribuir](#-contribuir)
+![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat&logo=python)
+![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=flat&logo=docker)
+![Security](https://img.shields.io/badge/Purpose-Security_Scanning-critical?style=flat&logo=shieldsdotio)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat&logo=opensourceinitiative)
+![Ruff](https://img.shields.io/badge/Linter-Ruff-orange?style=flat&logo=python)
+![GitHub API](https://img.shields.io/badge/GitHub_API-REST_v3-181717?style=flat&logo=github)
 
 ---
 
-## ✨ Características
+## 🧠 Overview
 
-| Característica | Descripción |
+RepoSentinel es una herramienta de ciberseguridad ofensiva-defensiva orientada a la auditoría automatizada de repositorios públicos de GitHub. Escrita en Python 3.12, opera como una CLI modular que consume la GitHub REST API v3 para descubrir, inspeccionar y puntuar repositorios en busca de secretos expuestos, credenciales hardcodeadas y archivos sensibles filtrados accidentalmente.
+
+El proyecto se organiza bajo un motor de reglas extensible mediante expresiones regulares y archivos YAML personalizables, soporta escaneo concurrente con `ThreadPoolExecutor` y genera reportes duales en formatos Markdown y JSON. Este proyecto parece diseñado para escenarios de auditoría de seguridad responsable, pentesting autorizado, investigación académica y revisión interna de superficies de exposición en plataformas de control de versiones.
+
+> ⚠️ Esta herramienta fue concebida con un enfoque de **seguridad defensiva y uso ético**. Su uso sin autorización sobre repositorios o infraestructuras de terceros puede infringir los Términos de Servicio de GitHub y legislaciones aplicables. Úsala siempre de forma responsable.
+
+---
+
+## ⚙️ Features
+
+- **CLI completo con subcomandos**: escaneo por URL directa, búsqueda por keyword, usuario/organización y repositorios trending.
+- **Motor de detección con 35+ reglas regex** cubriendo proveedores como AWS, Google Cloud, GitHub, Stripe, Twilio, SendGrid, Azure, Heroku, Slack y claves privadas (RSA, SSH, PGP).
+- **Detección de 30+ patrones de archivos sensibles** por nombre y extensión: `.env`, `id_rsa`, `*.pem`, `kubeconfig`, `terraform.tfstate`, `.aws/credentials`, dumps SQL, y más.
+- **Reglas personalizadas en YAML** cargadas automáticamente desde `rules/custom_rules.yaml`, sin modificar el código fuente.
+- **Escaneo paralelo** mediante `ThreadPoolExecutor` configurable via `MAX_WORKERS`.
+- **Gestión inteligente de rate-limit** con back-off exponencial y detección automática del límite de la GitHub API (hasta 5.000 req/h con token).
+- **Sistema de Security Score 0–100** con calificación A–F por repositorio, basado en severidad ponderada de hallazgos.
+- **Reportes duales**: Markdown legible para humanos y JSON estructurado para integración en pipelines o dashboards.
+- **Logging avanzado**: salida en consola con colores (Windows via `colorama`) y archivo rotativo diario.
+- **Containerización completa** con Dockerfile multi-stage (builder + runner) bajo usuario no-root `scanner`.
+- **Integración de herramientas de seguridad de desarrollo**: `bandit` (SAST), `safety` / `pip-audit` (SCA), `mypy` (tipado estático), `ruff` (linting y formato).
+- **Hooks de pre-commit** configurados mediante `.pre-commit-config.yaml`.
+
+---
+
+## 🛠️ Tech Stack
+
+| Categoría | Tecnología / Librería |
 |---|---|
-| 🔑 **Autenticación GitHub** | Soporte de token para aumentar el rate-limit (5000 req/h) |
-| 🔍 **Búsqueda múltiple** | Por URL directa, keyword, usuario/org o trending |
-| 🧠 **35+ reglas de detección** | AWS, Google, GitHub, Stripe, Slack, Azure, etc. |
-| 📁 **Archivos sensibles** | 30+ patrones de nombre: .env, id_rsa, credentials, etc. |
-| ⚙️ **Reglas personalizables** | Añade tus propias reglas en YAML sin tocar código |
-| ⚡ **Concurrencia** | ThreadPoolExecutor para escanear múltiples repos en paralelo |
-| 🛡️ **Rate-limit inteligente** | Detección automática + back-off exponencial |
-| 📊 **Security Score** | Puntuación 0-100 + nota A-F por repositorio |
-| 📄 **Reportes duales** | Markdown (legible) y JSON (integrable) |
-| 🐳 **Portabilidad Docker** | Imagen optimizada y segura para ejecución aséptica |
-| 🖥️ **CLI completo** | Subcomandos, flags, ayuda detallada |
-| 📝 **Logging avanzado** | Consola con colores + archivo rotativo diario |
+| Lenguaje | Python 3.12 |
+| HTTP Client | `requests` ≥ 2.31 |
+| Variables de entorno | `python-dotenv` |
+| Reglas custom | `PyYAML` |
+| CLI coloreado | `colorama` (Windows) |
+| Seguridad HTTP | `urllib3` ≥ 2.6 |
+| Linting / Formato | `ruff`, `black`, `flake8` |
+| Análisis estático | `mypy` |
+| SAST | `bandit` |
+| SCA | `safety`, `pip-audit` |
+| Testing | `pytest` + `pytest-cov` |
+| Pre-commit hooks | `pre-commit` |
+| Contenerización | Docker (multi-stage, Python 3.12-slim) |
+| Automatización | `Makefile` |
+| Empaquetado | `setuptools` + `pyproject.toml` |
 
 ---
 
-## 🏗️ Arquitectura
+## 📦 Installation
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        main.py (CLI)                        │
-│         argparse · subcomandos · resumen en consola         │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-┌─────────────┐  ┌──────────┐  ┌──────────────┐
-│ github_api  │  │ scanner  │  │   reporter   │
-│             │  │          │  │              │
-│ • REST v3   │  │ • árbol  │  │ • Markdown   │
-│ • rate-limit│  │ • filtro │  │ • JSON       │
-│ • paginado  │  │ • threads│  │ • scoring    │
-│ • raw files │  │ • scoring│  │ • badges     │
-└─────────────┘  └────┬─────┘  └──────────────┘
-                      │
-            ┌─────────┴──────────┐
-            ▼                    ▼
-    ┌──────────────┐    ┌─────────────────┐
-    │  patterns.py │    │sensitive_files.py│
-    │              │    │                 │
-    │ 35+ regex    │    │ 30+ file rules  │
-    │ por severidad│    │ por nombre/ext  │
-    └──────────────┘    └─────────────────┘
-            │
-    ┌───────┴──────────┐
-    ▼                  ▼
-┌──────────────┐  ┌──────────────┐
-│patterns.py   │  │custom_rules  │
-│(built-in)    │  │.yaml (user)  │
-└──────────────┘  └──────────────┘
-```
+### Prerrequisitos
 
-### Flujo de datos
+- Python `>=3.11` (recomendado 3.12)
+- Token de acceso personal de GitHub con permiso `public_repo` (solo lectura)
+- Docker (opcional, para ejecución containerizada)
 
-```
-Usuario
-  │
-  ▼ CLI args
-main.py
-  │
-  ├──► GitHubClient.search_repos_*() / get_repo_by_url()
-  │         │
-  │         └──► [lista de repos]
-  │
-  ├──► RepositoryScanner.scan_repos()
-  │         │
-  │         ├──► get_file_tree()  ──► filtrar por extensión/nombre
-  │         │
-  │         ├──► match_sensitive_file()  ──► SensitiveFileHit[]
-  │         │
-  │         └──► get_file_content() ──► ContentAnalyzer.analyze()
-  │                                           │
-  │                                           └──► Finding[]
-  │
-  └──► ReportManager.generate_all()
-            │
-            ├──► report_YYYYMMDD_HHMMSS.md
-            └──► report_YYYYMMDD_HHMMSS.json
-```
-
----
-
-## 📁 Estructura del Proyecto
-
-```
-github-security-scanner/
-│
-├── src/                       # Código fuente y lógica principal
-│   ├── main.py                # CLI principal
-│   ├── config.py              # Configuración base
-│   ├── core/                  # Módulos core (API, logger, base scanner)
-│   ├── rules/                 # Patrones Regex y archivos sensibles (Core Engine)
-│   └── reports/               # Motores de reporting multiformato
-│
-├── configs/                   # Configuraciones del laboratorio
-│   └── .env.example           # Plantilla de secretos
-│
-├── scripts/                   # Scripts de automatización Pipeline local y Deploy
-│   ├── setup.sh               # Script de entorno de desarrollo principal
-│   └── publish_public.ps1     # Automatización DevSecOps para publicación en GitHub
-│
-├── docs/                      # Documentación técnica
-├── diagrams/                  # Arquitectura y diseño (C4/Diagrams)
-│
-├── .gitlab-ci.yml             # Integración con Laboratorio Privado Oculto
-├── requirements.txt           # Dependencias
-└── pyproject.toml             # Formateo (ruff) genérico
-```
-
-### Separación de Entornos y Estrategia DevSecOps
-
-Este repositorio está construido bajo un enfoque avanzado de ciberseguridad, separando el ciclo de investigación local del código distribuible públicamente:
-
-1. **GitLab (Private Lab / Source of Truth)**: El repositorio "aguas arriba" es un laboratorio privado completo. Cuenta con CI/CD extensivo, integración continua en pipelines de seguridad, componentes de prueba reales, scripts y cargas condicionales o tests automáticos. Todo el desarrollo se ejecuta primero aquí.
-2. **GitHub (Sanitizado / Público)**: Versión exclusiva para portafolio público, revisión académica o disclosure. No expone CI privados (`.gitlab-ci.yml`), carpetas de tests que contengan vectores de prueba reales (`tests/`), scripts corporativos locales (`scripts/`) o configuraciones sensibles (`configs/`).
-
-Esta segregación previene en todo momento que código de uso puramente ofensivo, pruebas en bruto o metadatos de nuestra operación de laboratorio sean expuestos accidentalmente en internet abierto.
-
-### Script `publish_public.ps1`
-
-El script encargado de arbitrar la segregación descrita es `publish_public.ps1`. Implementa una estrategia de sanitización automática **antes** de impactar la rama pública destinada a GitHub. 
-
-**Proceso del Script:**
-1. **Validación**: Comprueba que estemos laborando en la rama `main` y en entorno limpio.
-2. **Sincronización Previa**: Pushea los avances íntegros al ambiente Lab interno (GitLab).
-3. **Mecanismo Ocultación**: Crea una rama paralela (y temporal en log local) aislada.
-4. **Sanitización Acondicionada**: Elimina a nivel de Git cache todas las carpetas inyectables: `tests/`, `configs/`, y el propio despliegue `.gitlab-ci.yml` junto con el propio código fuente de reglas en entornos específicos si lo aplica.
-5. **Liberación Controlada**: Despliega un "force push" aséptico al repositorio público y vuelve de inmediato al `main` seguro para que el investigador continúe sin percibir cortes en sus archivos locales de proyecto.
-
----
-
-## 🚀 Instalación
-
-### Requisitos previos
-
-- Python 3.9 o superior
-- Token de acceso personal de GitHub ([generar aquí](https://github.com/settings/tokens))
-
-### 🐧 Instalación en Linux / macOS
+### 🐧 Linux / macOS
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/tuusuario/github-security-scanner.git
-cd github-security-scanner
+git clone https://github.com/devsebastian44/RepoSentinel.git
+cd RepoSentinel
 
-# 2. Crear entorno virtual e instalar dependencias
+# 2. Crear entorno virtual e instalar dependencias de producción
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install -r requirements.txt
+pip install -r requirements.txt
 
-# 3. Configurar entorno
+# 3. Alternativamente, instalación completa con extras de desarrollo
+pip install -e ".[dev,security]"
+
+# 4. Configurar variables de entorno
 cp .env.example .env
-# Editar .env y añadir tu GITHUB_TOKEN
+# Editar .env y añadir GITHUB_TOKEN
 ```
 
-### 🪟 Instalación en Windows
+### 🪟 Windows
 
 ```powershell
-# 1. Clonar el repositorio
-git clone https://github.com/tuusuario/github-security-scanner.git
-cd github-security-scanner
+git clone https://github.com/devsebastian44/RepoSentinel.git
+cd RepoSentinel
 
-# 2. Crear entorno virtual e instalar dependencias
 python -m venv .venv
 .\.venv\Scripts\activate
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 
-# 3. Configurar entorno
 Copy-Item .env.example .env
-# Editar .env y añadir tu GITHUB_TOKEN
+# Editar .env con tu GITHUB_TOKEN
+```
+
+### 🐳 Docker
+
+```bash
+# Construir imagen multi-stage
+docker build -t repo-sentinel .
+
+# Ejecutar con variables de entorno
+docker run --rm -it --env-file .env repo-sentinel --help
+```
+
+### ⚡ Con Makefile (recomendado para desarrollo)
+
+```bash
+make install        # Producción
+make install-dev    # Desarrollo completo + pre-commit
+make dev-setup      # Setup completo del entorno de desarrollo
 ```
 
 ---
 
-## ⚙️ Configuración
+## ▶️ Usage
 
-Edita el archivo `.env`:
-
-```env
-# OBLIGATORIO
-GITHUB_TOKEN=ghp_tu_token_aqui
-
-# Opcional (valores por defecto)
-MAX_REPOS=10              # Repos máximos por búsqueda
-MAX_FILES_PER_REPO=100    # Archivos máximos por repo
-MAX_FILE_SIZE=500000      # Tamaño máx. de archivo (bytes)
-MAX_WORKERS=5             # Hilos paralelos
-RATE_LIMIT_PAUSE=2.0      # Pausa (s) cuando el rate-limit es bajo
-LOG_LEVEL=INFO            # DEBUG | INFO | WARNING | ERROR
-```
-
----
-
-## 🖥️ Uso
-
-> [!NOTE]
-> Debido al estándar de arquitectura segregada, todas las ejecuciones locales se dirigen explícitamente hacia la carpeta fuente: `python src/main.py`.
+> Todas las ejecuciones apuntan directamente a `python src/main.py` por la arquitectura segregada del proyecto.
 
 ### Escaneo por URL directa
 
 ```bash
-# Escanear un repositorio específico mediante su enlace
-python src/main.py url https://github.com/octocat/Spoon-Knife
-
-# Soporte para diversos formatos (HTTPS, SSH, corto)
-python src/main.py url github.com/pallets/flask
+python src/main.py url https://github.com/owner/repository
 python src/main.py url owner/repo
 ```
 
-### Escaneo por palabra clave
+### Búsqueda por keyword
 
 ```bash
-# Buscar repos que mencionen "aws secret key"
 python src/main.py keyword "aws secret key" --max-repos 5
-
-# Filtrar por lenguaje
 python src/main.py keyword "firebase" --language javascript --max-repos 10
-
-# Generar solo JSON
 python src/main.py keyword "django" --format json -n 3
 ```
 
-### Escaneo por usuario u organización
+### Por usuario u organización
 
 ```bash
-# Escanear repos públicos de un usuario
 python src/main.py user octocat --max-repos 10
-
-# Escanear repos de una organización
 python src/main.py user microsoft --max-repos 20 --workers 8
 ```
 
-### Repositorios Trending
+### Repositorios trending
 
 ```bash
-# Top trending de la semana (todos los lenguajes)
 python src/main.py trending --max-repos 10
-
-# Trending de Python con 8 workers
 python src/main.py trending --language python --max-repos 15 --workers 8
 ```
 
-### Verificar rate-limit
+### Verificar rate-limit de la API
 
 ```bash
 python src/main.py rate-limit
 ```
 
-### Opciones globales
+### Opciones globales combinadas
 
 ```bash
 python src/main.py keyword "stripe" \
-    --max-repos 5 \                # Límite de repositorios
-    --workers 3 \                  # Hilos paralelos
-    --format md json \             # Formatos de reporte
-    --output-dir ./mis_reportes \  # Directorio de salida
-    --token ghp_XXXX \             # Sustituto temporal por línea a .env
-    --no-banner                    # Suprimir banner ASCII
+  --max-repos 5 \
+  --workers 3 \
+  --format md json \
+  --output-dir ./mis_reportes \
+  --token ghp_XXXX \
+  --no-banner
 ```
 
-### Ayuda
+### Comandos Makefile útiles
 
 ```bash
-python src/main.py --help
-python src/main.py url --help
-python src/main.py keyword --help
-python src/main.py user --help
+make run            # Ejecutar scanner con --help
+make test           # Tests con cobertura
+make lint           # Ruff + mypy
+make security       # pip-audit + bandit
+make docker-build   # Construir imagen Docker
+make docker-run     # Ejecutar contenedor con .env
+make clean          # Limpiar caches y artefactos de build
 ```
 
 ---
 
-## 🔍 Reglas de Detección
+## 📁 Project Structure
 
-### Secretos en contenido de archivos (35+ reglas)
-
-| Proveedor | Reglas | Severidad |
-|---|---|---|
-| **AWS** | Access Key, Secret Key, Session Token | 🔴 Critical / 🟠 High |
-| **Google Cloud** | API Key, OAuth Secret, Service Account, Firebase | 🔴 Critical / 🟠 High |
-| **GitHub** | PAT Classic, PAT Fine-Grained, OAuth Token, App Token | 🔴 Critical |
-| **Slack** | Bot Token, User Token, Webhook URL | 🟠 High / 🟡 Medium |
-| **Stripe** | Secret Key, Restricted Key | 🔴 Critical / 🟠 High |
-| **Twilio** | Account SID, Auth Token | 🟠 High / 🟡 Medium |
-| **SendGrid** | API Key | 🟠 High |
-| **Azure** | Client Secret, Storage Key | 🔴 Critical |
-| **Heroku** | API Key | 🟠 High |
-| **Bases de datos** | URL con credenciales, MongoDB Connection | 🔴 Critical / 🟠 High |
-| **Genérico** | Passwords hardcoded, Bearer tokens, JWT secrets | 🟠 High / 🟡 Medium |
-| **Claves privadas** | RSA, EC, OpenSSH, PGP | 🔴 Critical |
-| **NPM** | Access Token | 🟠 High |
-
-### Archivos sensibles por nombre (30+ reglas)
-
-| Patrón | Descripción | Severidad |
-|---|---|---|
-| `.env`, `.env.*` | Variables de entorno | 🔴 Critical |
-| `id_rsa`, `id_ed25519` | Claves SSH privadas | 🔴 Critical |
-| `*.pem`, `*.key`, `*.p12` | Certificados y claves | 🔴 Critical |
-| `.aws/credentials` | Credenciales AWS CLI | 🔴 Critical |
-| `kubeconfig` | Acceso a Kubernetes | 🔴 Critical |
-| `.netrc` | Credenciales de red | 🔴 Critical |
-| `terraform.tfstate` | Estado de infraestructura | 🟠 High |
-| `.npmrc`, `.pypirc` | Tokens de registros de paquetes | 🟠 High |
-| `.docker/config.json` | Credenciales de registros Docker | 🟠 High |
-| `*.sql`, `*.dump` | Volcados de base de datos | 🔴 Critical |
-| `credentials.xml` | Credenciales de Jenkins | 🟠 High |
-
----
-
-## 📊 Reportes
-
-Todos los reportes se guardan en `output/` con timestamp:
-
-### Markdown (`report_YYYYMMDD_HHMMSS.md`)
-
-Incluye:
-- Resumen ejecutivo con métricas globales
-- Tabla de todos los repositorios con score y badge
-- Sección detallada por repositorio:
-  - Archivos sensibles detectados
-  - Vulnerabilidades en contenido (archivo, línea, extracto censurado)
-- Recomendaciones generales de seguridad
-
-### JSON (`report_YYYYMMDD_HHMMSS.json`)
-
-```json
-{
-  "meta": {
-    "tool": "github-security-scanner",
-    "version": "1.0.0",
-    "generated_at": "2025-01-15T10:30:00+00:00",
-    "repos_scanned": 5
-  },
-  "summary": {
-    "total_issues": 23,
-    "files_analyzed": 412,
-    "severity_counts": { "critical": 3, "high": 8, "medium": 9, "low": 3 },
-    "average_score": 61,
-    "repos_with_critical": 2
-  },
-  "repositories": [
-    {
-      "repo": { "full_name": "user/repo", "url": "...", "stars": 142 },
-      "score": { "value": 20, "grade": "D" },
-      "findings": [...],
-      "sensitive_files": [...]
-    }
-  ]
-}
+```
+RepoSentinel/
+│
+├── src/                        # Código fuente principal
+│   ├── main.py                 # CLI (argparse): subcomandos, resumen en consola
+│   ├── config.py               # Configuración base cargada desde .env
+│   ├── core/                   # Módulos core del sistema
+│   │   ├── github_api.py       # Cliente GitHub REST v3 (rate-limit, paginado, raw files)
+│   │   ├── scanner.py          # Motor de escaneo concurrente (ThreadPoolExecutor)
+│   │   └── logger.py           # Logger con colores y rotación de archivos
+│   ├── rules/                  # Motor de reglas de detección
+│   │   ├── patterns.py         # 35+ regex por severidad (AWS, GCP, GitHub, Stripe...)
+│   │   ├── sensitive_files.py  # 30+ patrones de archivos por nombre/extensión
+│   │   └── custom_rules.yaml   # Reglas personalizadas del usuario (cargadas automáticamente)
+│   └── reports/                # Motores de generación de reportes
+│       ├── reporter.py         # Orquestador de reportes
+│       ├── markdown_report.py  # Generación de report .md
+│       └── json_report.py      # Generación de report .json
+│
+├── .env.example                # Plantilla de variables de entorno (sin secretos reales)
+├── .pre-commit-config.yaml     # Hooks de pre-commit (linting, seguridad)
+├── Dockerfile                  # Imagen multi-stage Python 3.12-slim, usuario no-root
+├── Makefile                    # Automatización: install, test, lint, security, docker
+├── pyproject.toml              # Metadatos del paquete, ruff, mypy, pytest, coverage
+├── requirements.txt            # Dependencias de producción fijadas
+└── LICENSE                     # Licencia MIT
 ```
 
 ---
 
-## 📈 Sistema de Scoring
+## 🔐 Security
 
-Cada repositorio recibe un **Security Score** de 0 a 100:
+Este proyecto está diseñado con un enfoque de **seguridad por capas**, tanto en su implementación interna como en la forma en que audita repositorios externos.
 
-```
-Score = 100 - Σ(peso_severidad × cantidad_issues_de_esa_severidad)
-```
+### Seguridad interna de la herramienta
 
-| Severidad | Peso por issue |
-|---|---|
-| 🔴 Critical | -40 puntos |
-| 🟠 High | -20 puntos |
-| 🟡 Medium | -10 puntos |
-| 🟢 Low | -3 puntos |
+- **Usuario no-root en Docker**: el contenedor crea y ejecuta bajo el usuario `scanner` (UID dedicado), sin privilegios de root.
+- **Dockerfile multi-stage**: la imagen final no contiene compiladores ni herramientas de build, reduciendo la superficie de ataque.
+- **SAST con Bandit**: análisis estático del código Python en busca de patrones inseguros, ejecutado en CI y disponible via `make security`.
+- **SCA con safety/pip-audit**: verificación de dependencias contra bases de datos de vulnerabilidades conocidas (CVEs).
+- **Análisis de tipo estricto con mypy**: configurado en modo estricto (`disallow_untyped_defs`, `warn_return_any`, `strict_equality`), reduciendo la probabilidad de errores de runtime.
+- **Pre-commit hooks**: controles automáticos antes de cada commit para prevenir regresiones de calidad o seguridad.
+- **Token con permisos mínimos**: el `.env.example` documenta explícitamente que solo se requiere permiso `public_repo` (lectura), siguiendo el principio de mínimo privilegio.
+- **Arquitectura de repositorios segregada**: el código de laboratorio completo (tests con vectores reales, CI/CD privado, configs sensibles) permanece exclusivamente en GitLab y nunca se expone públicamente.
 
-El score mínimo es 0 (nunca negativo).
+### Uso ético y responsable
 
-### Tabla de notas
+Esta herramienta opera exclusivamente sobre repositorios **públicos** mediante la GitHub API oficial. Está concebida para:
 
-| Nota | Score mínimo | Interpretación |
-|---|---|---|
-| **A** | 90 | Excelente — Sin issues o sólo bajos |
-| **B** | 70 | Bueno — Pocos issues menores |
-| **C** | 50 | Regular — Issues medios/altos presentes |
-| **D** | 30 | Malo — Múltiples vulnerabilidades graves |
-| **F** | 0 | Crítico — Secretos expuestos confirmados |
+- ✅ Auditar tus propios repositorios o los de tu organización.
+- ✅ Investigación de seguridad con enfoque de **responsible disclosure**.
+- ✅ Aprendizaje y laboratorio de ciberseguridad.
+- ✅ Pentesting con autorización explícita del propietario.
 
----
+No está diseñada para explotar vulnerabilidades encontradas en repositorios ajenos. Si se detecta un secreto expuesto en un repositorio de terceros, la práctica correcta es notificar al propietario responsablemente. Muchas plataformas cuentan con programas de bug bounty para este fin.
 
-## 🔧 Reglas Personalizadas
-
-Añade tus propias reglas en `rules/custom_rules.yaml` sin modificar el código:
-
-```yaml
-rules:
-  - id:          MI_TOKEN_INTERNO
-    name:        Token de API Interna
-    description: Token de acceso al sistema interno ACME Corp.
-    severity:    critical        # critical | high | medium | low
-    pattern:     'acme_[0-9a-f]{40}'
-    category:    custom
-
-  - id:          INTERNAL_DB
-    name:        Conexión a BD Corporativa
-    description: Cadena de conexión al servidor Oracle interno.
-    severity:    critical
-    pattern:     'jdbc:oracle://db\.corp\.acme\.com'
-    category:    custom
-```
-
-Las reglas se cargan automáticamente en cada ejecución.
+> **El uso de esta herramienta es responsabilidad exclusiva del usuario.**
 
 ---
 
-## ⚖️ Consideraciones Éticas y Legales
+## 🌐 Repository Architecture
 
-> ⚠️ **IMPORTANTE: Lee esto antes de usar esta herramienta.**
+Este proyecto sigue una arquitectura distribuida de repositorios con enfoque DevSecOps estricto:
 
-Esta herramienta está diseñada para:
+- **GitLab** — Laboratorio privado completo y fuente de verdad: contiene el pipeline CI/CD (`.gitlab-ci.yml`), tests con vectores reales (`tests/`), scripts de automatización internos (`scripts/`), configuraciones de infraestructura (`configs/`) y todos los componentes de laboratorio que no deben exponerse públicamente.
+- **GitHub** — Presentación pública sanitizada: contiene el código fuente core, documentación técnica, diagramas de arquitectura y la configuración esencial para reproducción del entorno.
 
-- ✅ Auditar **tus propios repositorios** o de tu organización.
-- ✅ **Investigación de seguridad** responsable (responsible disclosure).
-- ✅ **Educación** y aprendizaje de ciberseguridad.
-- ✅ **Pentesting** con autorización expresa del propietario.
+### 🔗 Full Source Code
 
-**No está diseñada para:**
-
-- ❌ Acceder sin autorización a datos de terceros.
-- ❌ Explotar vulnerabilidades encontradas en repos ajenos.
-- ❌ Violar los [Términos de Servicio de GitHub](https://docs.github.com/en/site-policy/github-terms/github-terms-of-service).
-
-Si encuentras un secreto expuesto en un repo ajeno, la práctica correcta es notificar al propietario de forma responsable (responsible disclosure). Muchas plataformas tienen programas de bug bounty.
-
-**El uso de esta herramienta es responsabilidad exclusiva del usuario.**
+👉 Código completo disponible en GitLab: [https://gitlab.com/group-cybersecurity-lab/RepoSentinel](https://gitlab.com/group-cybersecurity-lab/RepoSentinel)
 
 ---
 
-## 🚀 Ideas para Mejoras Futuras
+## 🚀 Roadmap
 
-### Corto plazo
-- [ ] **Soporte para repositorios privados** (con los permisos adecuados del token).
-- [ ] **Análisis de historial de git** (commits pasados donde el secreto fue borrado).
-- [ ] **Exportación a SARIF** (formato estándar de GitHub Code Scanning).
-- [ ] **Modo watch**: monitoreo continuo de nuevos commits.
+Basado en el análisis de la arquitectura actual y las dependencias detectadas en el código:
 
-### Medio plazo
-- [ ] **Integración con GitLab y Bitbucket** (misma arquitectura, diferente cliente API).
-- [ ] **Dashboard web** con Flask/FastAPI para visualizar reportes en navegador.
-- [ ] **Notificaciones** via Slack/email/webhook cuando se detectan críticos.
-- [ ] **Verificación de validez**: comprobar si el secreto detectado sigue activo.
-- [ ] **Plugin de pre-commit** para uso local en proyectos.
-
-### Largo plazo
-- [ ] **Motor ML/NLP** para detección de secretos con semántica (reducir falsos positivos).
-- [ ] **Base de datos de resultados** (SQLite/PostgreSQL) para comparación histórica.
-- [ ] **API REST propia** para integración en pipelines CI/CD.
-- [x] **Contenedor Docker** oficial para ejecución aislada.
-- [ ] **GitHub Action** para integración nativa en workflows.
-- [ ] **Soporte para Semgrep** como motor de análisis estático adicional.
+- [ ] **Soporte para repositorios privados** con tokens de alcance ampliado y gestión de permisos.
+- [ ] **Análisis de historial de git**: escaneo de commits pasados donde el secreto fue removido pero aún existe en el historial.
+- [ ] **Exportación a SARIF** (formato estándar de GitHub Code Scanning / OASIS).
+- [ ] **Modo watch/monitor**: detección continua de nuevos commits o repositorios en tiempo real.
+- [ ] **Verificación de validez del secreto**: comprobar si las credenciales detectadas siguen activas (requiere manejo ético cuidadoso).
+- [ ] **Integración con GitLab y Bitbucket** bajo la misma arquitectura modular de clientes API.
+- [ ] **Dashboard web con FastAPI/Flask** para visualizar y filtrar reportes desde el navegador.
+- [ ] **Notificaciones por webhooks** (Slack/email) cuando se detectan hallazgos de severidad crítica.
+- [ ] **Motor ML/NLP** para reducción de falsos positivos mediante análisis semántico de contexto.
+- [ ] **Base de datos histórica** (SQLite/PostgreSQL) para tracking de hallazgos a lo largo del tiempo.
+- [ ] **API REST propia** para integración nativa en pipelines CI/CD de terceros.
+- [ ] **GitHub Action oficial** para auditoría automática en workflows de repositorios.
+- [ ] **Plugin pre-commit** para detección local antes de cada push.
 
 ---
 
-## 🤝 Contribuir
+## 📄 License
 
-Las contribuciones son bienvenidas. Por favor:
+Este proyecto está bajo la licencia **MIT**.
 
-1. Haz fork del repositorio.
-2. Crea una rama descriptiva: `git checkout -b feat/nueva-regla-azure`.
-3. Haz commit de tus cambios con mensajes claros.
-4. Abre un Pull Request con descripción detallada.
-
-Para añadir nuevas reglas de detección, edita `rules/patterns.py` siguiendo el formato existente.
+> Licencia detectada directamente desde el archivo `LICENSE` en la raíz del repositorio y confirmada en los clasificadores de `pyproject.toml` (`License :: OSI Approved :: MIT License`).
 
 ---
 
-*Desarrollado con fines educativos y de seguridad defensiva.*  
-*Si encuentras secretos expuestos, actúa de forma responsable.*
+## 👨‍💻 Author
+
+**Sebastian Zhunaula** — [@devsebastian44](https://github.com/devsebastian44)
+
+Desarrollador y analista de seguridad con enfoque en herramientas de auditoría, arquitecturas DevSecOps y automatización de laboratorios de ciberseguridad.
