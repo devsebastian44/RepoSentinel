@@ -42,7 +42,9 @@ class TestMain:
     @patch("main.GitHubClient")
     @patch("main.RepositoryScanner")
     @patch("main.ReportManager")
-    def test_main_url_command(self, mock_report_u, mock_scanner_u, mock_client):
+    def test_main_url_command(
+        self, mock_report_u: Any, mock_scanner_u: Any, mock_client: Any
+    ) -> None:
         """Test the 'url' subcommand in main."""
         _ = (mock_report_u, mock_scanner_u)  # Mark as used for Ruff
         mock_args = MagicMock()

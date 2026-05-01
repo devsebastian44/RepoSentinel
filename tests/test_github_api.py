@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -13,7 +14,7 @@ from core.github_api import GitHubClient, RateLimitError
 
 
 @pytest.fixture
-def client():
+def client() -> GitHubClient:
     return GitHubClient(token="fake_token")
 
 
@@ -21,7 +22,7 @@ class TestGitHubClient:
     """Test cases for GitHubClient."""
 
     @patch("requests.Session.get")
-    def test_get_success(self, mock_get, client):
+    def test_get_success(self, mock_get: Any, client: GitHubClient) -> None:
         """Test successful GET request."""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -37,7 +38,7 @@ class TestGitHubClient:
         mock_get.assert_called_once()
 
     @patch("requests.Session.get")
-    def test_get_rate_limit(self, mock_get, client):
+    def test_get_rate_limit(self, mock_get: Any, client: GitHubClient) -> None:
         """Test rate limit error handling."""
         mock_resp = MagicMock()
         mock_resp.status_code = 403
@@ -51,7 +52,7 @@ class TestGitHubClient:
             client._get("repos/owner/repo")
 
     @patch("requests.Session.get")
-    def test_search_repos(self, mock_get, client):
+    def test_search_repos(self, mock_get: Any, client: GitHubClient) -> None:
         """Test search_repos_by_keyword."""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -63,7 +64,7 @@ class TestGitHubClient:
         assert len(results) == 1
         assert results[0]["full_name"] == "owner/repo"
 
-    def test_parse_github_url(self, client):
+    def test_parse_github_url(self, client: GitHubClient) -> None:
         """Test URL parsing logic."""
         owner, repo = client._parse_github_url(
             "https://github.com/devsebastian44/RepoSentinel"
