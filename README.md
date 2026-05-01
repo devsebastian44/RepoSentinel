@@ -3,8 +3,7 @@
 ![Python](https://img.shields.io/badge/Python-3.12-blue?style=flat&logo=python)
 ![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?style=flat&logo=docker)
 ![Security](https://img.shields.io/badge/Purpose-Security_Scanning-critical?style=flat&logo=shieldsdotio)
-![License](https://img.shields.io/badge/License-MIT-green?style=flat&logo=opensourceinitiative)
-![Ruff](https://img.shields.io/badge/Linter-Ruff-orange?style=flat&logo=python)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?style=flat&logo=github-actions&logoColor=white)
 ![GitHub API](https://img.shields.io/badge/GitHub_API-REST_v3-181717?style=flat&logo=github)
 
 ---
@@ -15,7 +14,7 @@ RepoSentinel es una herramienta de ciberseguridad ofensiva-defensiva orientada a
 
 El proyecto se organiza bajo un motor de reglas extensible mediante expresiones regulares y archivos YAML personalizables, soporta escaneo concurrente con `ThreadPoolExecutor` y genera reportes duales en formatos Markdown y JSON. Este proyecto parece diseñado para escenarios de auditoría de seguridad responsable, pentesting autorizado, investigación académica y revisión interna de superficies de exposición en plataformas de control de versiones.
 
-> ⚠️ Esta herramienta fue concebida con un enfoque de **seguridad defensiva y uso ético**. Su uso sin autorización sobre repositorios o infraestructuras de terceros puede infringir los Términos de Servicio de GitHub y legislaciones aplicables. Úsala siempre de forma responsable.
+> ⚠️ **Ethical Disclaimer**: This project is for educational and ethical cybersecurity purposes only. Its use without authorization over third-party repositories or infrastructures may violate GitHub's Terms of Service and applicable laws. Always use it responsibly.
 
 ---
 
@@ -230,7 +229,6 @@ Este proyecto está diseñado con un enfoque de **seguridad por capas**, tanto e
 - **Análisis de tipo estricto con mypy**: configurado en modo estricto (`disallow_untyped_defs`, `warn_return_any`, `strict_equality`), reduciendo la probabilidad de errores de runtime.
 - **Pre-commit hooks**: controles automáticos antes de cada commit para prevenir regresiones de calidad o seguridad.
 - **Token con permisos mínimos**: el `.env.example` documenta explícitamente que solo se requiere permiso `public_repo` (lectura), siguiendo el principio de mínimo privilegio.
-- **Arquitectura de repositorios segregada**: el código de laboratorio completo (tests con vectores reales, CI/CD privado, configs sensibles) permanece exclusivamente en GitLab y nunca se expone públicamente.
 
 ### Uso ético y responsable
 
@@ -245,20 +243,6 @@ No está diseñada para explotar vulnerabilidades encontradas en repositorios aj
 
 > **El uso de esta herramienta es responsabilidad exclusiva del usuario.**
 
----
-
-## 🌐 Repository Architecture
-
-Este proyecto sigue una arquitectura distribuida de repositorios con enfoque DevSecOps estricto:
-
-- **GitLab** — Laboratorio privado completo y fuente de verdad: contiene el pipeline CI/CD (`.gitlab-ci.yml`), tests con vectores reales (`tests/`), scripts de automatización internos (`scripts/`), configuraciones de infraestructura (`configs/`) y todos los componentes de laboratorio que no deben exponerse públicamente.
-- **GitHub** — Presentación pública sanitizada: contiene el código fuente core, documentación técnica, diagramas de arquitectura y la configuración esencial para reproducción del entorno.
-
-### 🔗 Full Source Code
-
-👉 Código completo disponible en GitLab: [https://gitlab.com/group-cybersecurity-lab/RepoSentinel](https://gitlab.com/group-cybersecurity-lab/RepoSentinel)
-
----
 
 ## 🚀 Roadmap
 
@@ -277,6 +261,28 @@ Basado en el análisis de la arquitectura actual y las dependencias detectadas e
 - [ ] **API REST propia** para integración nativa en pipelines CI/CD de terceros.
 - [ ] **GitHub Action oficial** para auditoría automática en workflows de repositorios.
 - [ ] **Plugin pre-commit** para detección local antes de cada push.
+
+---
+
+## 🤝 Contributing
+
+¡Las contribuciones son bienvenidas! Si quieres mejorar RepoSentinel, sigue estos pasos:
+
+1.  **Fork** el repositorio.
+2.  Crea una nueva rama para tu funcionalidad (`git checkout -b feature/amazing-feature`).
+3.  Realiza tus cambios y asegúrate de que los tests pasen (`make test`).
+4.  Haz commit de tus cambios siguiendo **Conventional Commits**.
+5.  Haz **Push** a la rama (`git push origin feature/amazing-feature`).
+6.  Abre un **Pull Request** detallando tus cambios.
+
+### Estilo de Commit
+
+Este proyecto utiliza [Conventional Commits](https://www.conventionalcommits.org/):
+- `feat:` para nuevas funcionalidades.
+- `fix:` para corrección de errores.
+- `docs:` para cambios en documentación.
+- `test:` para añadir o modificar tests.
+- `refactor:` para cambios en el código que no añaden funciones ni arreglan bugs.
 
 ---
 
