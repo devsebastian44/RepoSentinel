@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,7 +33,7 @@ class TestGitHubClient:
         }
         mock_get.return_value = mock_resp
 
-        result = client._get("repos/owner/repo")
+        result = cast(dict, client._get("repos/owner/repo"))
         assert result["name"] == "test-repo"
         mock_get.assert_called_once()
 
