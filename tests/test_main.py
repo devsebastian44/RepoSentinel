@@ -42,8 +42,9 @@ class TestMain:
     @patch("main.GitHubClient")
     @patch("main.RepositoryScanner")
     @patch("main.ReportManager")
-    def test_main_url_command(self, mock_report, mock_scanner, mock_client):
+    def test_main_url_command(self, mock_report_u, mock_scanner_u, mock_client):
         """Test the 'url' subcommand in main."""
+        _ = (mock_report_u, mock_scanner_u)  # Mark as used for Ruff
         mock_args = MagicMock()
         mock_args.command = "url"
         mock_args.url = "https://github.com/owner/repo"
@@ -53,16 +54,16 @@ class TestMain:
         mock_args.output_dir = Path("output")
         mock_args.no_banner = True
         mock_args.token = None
-        
+
         mock_client.return_value._parse_github_url.return_value = ("owner", "repo")
-        
+
         with patch("main.argparse.ArgumentParser.parse_args", return_value=mock_args):
             with patch("main.get_logger"):
                 with patch("sys.exit") as mock_exit:
                     main.main()
-        
+
         mock_exit.assert_called_with(0)
-        
+
         mock_client.return_value.get_repo_by_url.assert_called_with(url=mock_args.url)
 
 

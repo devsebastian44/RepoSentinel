@@ -2,17 +2,20 @@
 
 import sys
 from pathlib import Path
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from core.github_api import GitHubClient, RateLimitError, GitHubAPIError
+from core.github_api import GitHubClient, RateLimitError
+
 
 @pytest.fixture
 def client():
     return GitHubClient(token="fake_token")
+
 
 class TestGitHubClient:
     """Test cases for GitHubClient."""
@@ -23,7 +26,10 @@ class TestGitHubClient:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"id": 123, "name": "test-repo"}
-        mock_resp.headers = {"X-RateLimit-Remaining": "5000", "X-RateLimit-Reset": "12345678"}
+        mock_resp.headers = {
+            "X-RateLimit-Remaining": "5000",
+            "X-RateLimit-Reset": "12345678",
+        }
         mock_get.return_value = mock_resp
 
         result = client._get("repos/owner/repo")
@@ -35,7 +41,10 @@ class TestGitHubClient:
         """Test rate limit error handling."""
         mock_resp = MagicMock()
         mock_resp.status_code = 403
-        mock_resp.headers = {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "12345678"}
+        mock_resp.headers = {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": "12345678",
+        }
         mock_get.return_value = mock_resp
 
         with pytest.raises(RateLimitError):
@@ -56,7 +65,9 @@ class TestGitHubClient:
 
     def test_parse_github_url(self, client):
         """Test URL parsing logic."""
-        owner, repo = client._parse_github_url("https://github.com/devsebastian44/RepoSentinel")
+        owner, repo = client._parse_github_url(
+            "https://github.com/devsebastian44/RepoSentinel"
+        )
         assert owner == "devsebastian44"
         assert repo == "RepoSentinel"
 
