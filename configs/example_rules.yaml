@@ -1,0 +1,18 @@
+# RepoSentinel - Custom Rules Example
+# Copy this file to src/rules/custom_rules.yaml to activate these rules.
+
+custom_rules:
+  - name: "Internal API Key Pattern"
+    regex: 'api[_-]key[_-]internal\s*[:=]\s*["'']([a-zA-Z0-9]{32})["'']'
+    severity: "high"
+    description: "Detected a potential internal API key for the staging environment."
+
+  - name: "Debug Mode Credential"
+    regex: 'debug[_-]password\s*[:=]\s*["''](.*)["'']'
+    severity: "medium"
+    description: "Found hardcoded password used for debug/local development."
+
+  - name: "Sensitive Endpoint Leak"
+    regex: '(?:https?://)?(?:[a-zA-Z0-9.-]+\.)?internal-dashboard\.net/[a-zA-Z0-9/._-]+'
+    severity: "low"
+    description: "Found a reference to an internal company dashboard."
